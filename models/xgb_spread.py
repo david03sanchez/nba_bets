@@ -78,8 +78,8 @@ team_list = scoring_object.get_team_list()
 
 
 
-home_stats = scoring_object.getTeamStats('OKC','2021-11-07')
-away_stats = scoring_object.getTeamStats('SAS','2021-11-07')
+home_stats = scoring_object.getTeamStats('MIL','2021-11-09')
+away_stats = scoring_object.getTeamStats('PHI','2021-11-09')
 
 home_stats_flat = home_stats.to_numpy().reshape(1,-1)
 away_stats_flat = away_stats.to_numpy().reshape(1,-1)
