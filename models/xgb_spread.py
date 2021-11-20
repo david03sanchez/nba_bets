@@ -1,12 +1,17 @@
 import pandas as pd
 import numpy as np
 from common_functions.utils import DataObject
-
+env = 'linux'
 #%%
+if env == 'mac':
+    root_data_dir = '/Users/danny/nba_bets/data/'
+elif env == 'linux':
+    root_data_dir = '/home/danny/nba/data/'  # todo move the models to this directory on linux
+
 #read in data
-df1 = pd.read_csv('/home/danny/nba_bets/data/gamedf.csv',index_col = 0)
+df1 = pd.read_csv(root_data_dir + 'gamedf.csv',index_col = 0)
 dataset_object = DataObject(df1)
-optimization_result = dataset_object.get_optimization()
+optimization_result = dataset_object.get_optimization(label_function='spread')
 
 complete_dataset = []
 for val in optimization_result:
@@ -45,11 +50,11 @@ from sklearn.metrics import mean_squared_error
 
 dtrain = xgb.DMatrix(train_features, label=train_labels)
 
-param = {'max_depth': 7, 'eta': .01, 'objective': 'reg:pseudohubererror'}
+param = {'max_depth': 3, 'eta': .1, 'objective': 'reg:squarederror'}
 param['tree_method'] = 'gpu_hist'
 param['eval_metric'] = 'mae'
 
-num_round = 700
+num_round = 200
 bst = xgb.train(param, dtrain, num_round)
 
 dtest = xgb.DMatrix(test_features)
@@ -60,7 +65,7 @@ pred_df['correct_call'] = np.where(np.sign(pred_df['predictions']) == np.sign(pr
 mean_squared_error(predictions, test_labels)**.5
 pred_df['correct_call'].mean()
 pred_df['const'] = 1
-bst.save_model('/home/danny/nba/spreadmodel.bst')
+bst.save_model(root_data_dir + 'spreadmodel.bst')
 
 import statsmodels.api as sm
 model = sm.OLS(pred_df['labels'], pred_df[['predictions','const']])
@@ -72,7 +77,7 @@ print(results.summary())
 import xgboost as xgb
 # bst = xgb.Booster()
 # bst.load_model('/home/danny/nba/overundermodel.bst')
-df1 = pd.read_csv('/home/danny/nba_bets/data/gamedf.csv',index_col = 0)
+df1 = pd.read_csv(root_data_dir + 'gamedf.csv',index_col = 0)
 scoring_object = DataObject(df1)
 team_list = scoring_object.get_team_list()
 
