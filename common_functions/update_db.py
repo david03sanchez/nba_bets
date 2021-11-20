@@ -1,8 +1,15 @@
 import pandas as pd
 from nba_api.stats.static import teams
 import sys
-sys.path.append('/home/danny/nba_bets')
+env = 'linux'
+#%%
+if env == 'mac':
+    root_data_dir = '/Users/danny/nba_bets/data/'
+elif env == 'linux':
+    root_data_dir = '/home/danny/nba/data/'  # todo move the models to this directory on linux
+    sys.path.append('/home/danny/nba_bets')
 from common_functions.utils import getTeamDF
+
 #%%
 
 
@@ -16,4 +23,4 @@ for abv in all_abs:
     all_games = pd.concat([all_games,gamedf],axis=0)
 
 
-all_games.to_csv('/home/danny/nba_bets/data/gamedf.csv')
+all_games.to_csv(root_data_dir + 'gamedf.csv')

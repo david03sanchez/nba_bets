@@ -11,7 +11,7 @@ elif env == 'linux':
 #read in data
 df1 = pd.read_csv(root_data_dir + 'gamedf.csv',index_col = 0)
 dataset_object = DataObject(df1)
-optimization_result = dataset_object.get_optimization(label_function='spread')
+optimization_result = dataset_object.get_optimization(label_function='over_under')
 
 complete_dataset = []
 for val in optimization_result:
@@ -52,9 +52,10 @@ dtrain = xgb.DMatrix(train_features, label=train_labels)
 
 param = {'max_depth': 3, 'eta': .1, 'objective': 'reg:squarederror'}
 param['tree_method'] = 'gpu_hist'
+param['sampling_method'] = 'gradient_based'
 param['eval_metric'] = 'mae'
 
-num_round = 200
+num_round = 300
 bst = xgb.train(param, dtrain, num_round)
 
 dtest = xgb.DMatrix(test_features)
@@ -65,7 +66,7 @@ pred_df['correct_call'] = np.where(np.sign(pred_df['predictions']) == np.sign(pr
 mean_squared_error(predictions, test_labels)**.5
 pred_df['correct_call'].mean()
 pred_df['const'] = 1
-bst.save_model(root_data_dir + 'spreadmodel.bst')
+bst.save_model(root_data_dir + 'overundermodel.bst')
 
 import statsmodels.api as sm
 model = sm.OLS(pred_df['labels'], pred_df[['predictions','const']])
@@ -83,8 +84,9 @@ team_list = scoring_object.get_team_list()
 
 
 
-home_stats = scoring_object.getTeamStats('MIL','2021-11-09')
-away_stats = scoring_object.getTeamStats('PHI','2021-11-09')
+
+away_stats = scoring_object.getTeamStats('CLE','2021-11-07')
+home_stats = scoring_object.getTeamStats('NYK','2021-11-07')
 
 home_stats_flat = home_stats.to_numpy().reshape(1,-1)
 away_stats_flat = away_stats.to_numpy().reshape(1,-1)
@@ -92,4 +94,5 @@ away_stats_flat = away_stats.to_numpy().reshape(1,-1)
 score_row = np.concatenate((home_stats_flat,away_stats_flat),axis=1)
 score_row_inverse = np.concatenate((away_stats_flat,home_stats_flat),axis=1)
 bst.predict(xgb.DMatrix(score_row))
+
 bst.predict(xgb.DMatrix(score_row_inverse))
