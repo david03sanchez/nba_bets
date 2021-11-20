@@ -136,6 +136,64 @@ class DataObject:
         team_list.sort_values('TEAM_NAME',inplace=True)
         return team_list
 
+class overunder_driver:
+    def __init__(self, game_date=pd.to_datetime('today'), env = 'linux'):
+        if env == 'mac':
+            self.root_data_dir = '/Users/danny/nba_bets/data/'
+        elif env == 'linux':
+            self.root_data_dir = '/home/danny/nba/data/'
+        elif env == 'david':
+            self.root_data_dir = '/home/david/nba/data/'
+
+        self.game_date = game_date
+        self.bst_spread = xgb.Booster()
+        self.bst_spread.load_model(self.root_data_dir + 'spreadmodel.bst')
+        self.bst_overunder = xgb.Booster()
+        self.bst_overunder.load_model(self.root_data_dir  + 'overundermodel.bst')
+        df1 = pd.read_csv(self.root_data_dir + 'gamedf.csv', index_col=0)
+        self.scoring_object = DataObject(df1)
+
+    def get_games(self,away_team,home_team):
+        self.away_stats = self.scoring_object.getTeamStats(away_team,self.game_date)
+        self.home_stats = self.scoring_object.getTeamStats(home_team,self.game_date)
+        home_stats_flat = self.home_stats.to_numpy().reshape(1, -1)
+        away_stats_flat = self.away_stats.to_numpy().reshape(1, -1)
+
+        score_row = np.concatenate((home_stats_flat, away_stats_flat), axis=1)
+        score_row_inverse = np.concatenate((away_stats_flat, home_stats_flat), axis=1)
+        spread_val = self.bst_spread.predict(xgb.DMatrix(score_row))
+        spread_inverse = self.bst_spread.predict(xgb.DMatrix(score_row_inverse))
+        over_under_val = self.bst_overunder.predict(xgb.DMatrix(score_row))
+        over_under_inverse = self.bst_overunder.predict(xgb.DMatrix(score_row_inverse))
+        out_list = [spread_val,spread_inverse,over_under_val,over_under_inverse]
+        # out_list = [over_under_val,over_under_inverse]
+        return out_list
+
+    def verify_game(self,away_team,home_team):
+        outlist = self.get_games(away_team, home_team)
+        # out_list = [over_under_val,over_under_inverse]
+        return outlist, self.home_stats, self.away_stats
+
+    def get_df(self,inputlist):
+        self.inputlist = inputlist
+        outlist = []
+        for i in inputlist:
+            c_away = i[0]
+            c_home = i[1]
+            c_game = list(chain.from_iterable(self.get_games(c_away,c_home)))
+            c_pair = [c_away,c_home]
+            c_pair.extend(c_game)
+            outrow = c_pair
+            outlist.append(outrow)
+        outdf = pd.DataFrame(outlist)
+        outdf.columns = ['away_team','home_team','spread', 'spread_inverse','over_under','over_under_inverse']
+        # outdf.columns = ['away_team','home_team','over_under','over_under_inverse']
+        return outdf
+
+    def get_team_list(self):
+        return self.scoring_object.get_team_list()
+
+
 class model_driver:
     def __init__(self, game_date=pd.to_datetime('today'), env = 'linux'):
         if env == 'mac':

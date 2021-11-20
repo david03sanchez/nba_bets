@@ -6,7 +6,7 @@ env = 'linux'
 if env == 'mac':
     root_data_dir = '/Users/danny/nba_bets/data/'
 elif env == 'linux':
-    root_data_dir = '/home/danny/nba/data/'  # todo move the models to this directory on linux
+    root_data_dir = '/home/danny/nba/data/'
 
 #read in data
 df1 = pd.read_csv(root_data_dir + 'gamedf.csv',index_col = 0)
