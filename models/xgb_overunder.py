@@ -55,7 +55,7 @@ param['tree_method'] = 'gpu_hist'
 param['sampling_method'] = 'gradient_based'
 param['eval_metric'] = 'mae'
 
-num_round = 300
+num_round = 400
 bst = xgb.train(param, dtrain, num_round)
 
 dtest = xgb.DMatrix(test_features)

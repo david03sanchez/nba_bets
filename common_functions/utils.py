@@ -6,7 +6,7 @@ import numpy as np
 import xgboost as xgb
 from multiprocessing import get_context
 
-# helper functions
+# danny helper functions
 
 def getTeamDF(abbreviation):
     from nba_api.stats.endpoints import leaguegamefinder
@@ -38,15 +38,14 @@ class DataObject:
                          'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF']
         date_subset = team_subset[team_subset['GAME_DATE'] < latestdate].copy()
         date_subset['numerical_wins'] = np.where(date_subset['WL'] == 'L', 0, 1)
+        date_subset['location'] = np.where(date_subset['MATCHUP'].str.contains('@'),-1,1)
         date_reversed = date_subset.iloc[::-1].copy()
         date_reversed['window_sum10'] = date_reversed['numerical_wins'].rolling(10).sum()
         date_reversed['window_sum5'] = date_reversed['numerical_wins'].rolling(5).sum()
         date_reversed['window_sum3'] = date_reversed['numerical_wins'].rolling(3).sum()
-        stats_columns.extend(['window_sum10', 'window_sum5', 'window_sum3'])
+        stats_columns.extend(['window_sum10', 'window_sum5', 'window_sum3','location','numerical_wins'])
         date_subset = date_reversed.copy()
         current_stats = date_subset.iloc[-11:, [date_subset.columns.get_loc(c) for c in stats_columns]].copy()
-        # game_data = date_subset.iloc[0:11, [date_subset.columns.get_loc(c) for c in ['WL', 'TEAM_ID', 'GAME_ID']]]
-        # game_data['Key'] = game_data['TEAM_ID'].astype(str) + "-" + game_data['GAME_ID'].astype(str)
         base_points = current_stats['PTS']
         current_stats['PIE'] = (
                     current_stats['PTS'] + current_stats['FGM'] + current_stats['FTM'] - current_stats[
@@ -77,7 +76,7 @@ class DataObject:
             away_df = self.getTeamStats(away_team[0], game_date)
             normalized_hdf = (home_df - home_df.min()) / (home_df.max() - home_df.min())
             normalized_adf = (away_df - away_df.min()) / (away_df.max() - away_df.min())
-            if home_df.shape == (11, 23) and away_df.shape == (11, 23):
+            if home_df.shape == (11, 25) and away_df.shape == (11, 25):
                 output = [target_game_date, spread, home_df, away_df]
             else:
                 return None
@@ -105,7 +104,7 @@ class DataObject:
             away_df = self.getTeamStats(away_team[0], game_date)
             # normalized_hdf = (home_df - home_df.min()) / (home_df.max() - home_df.min())
             # normalized_adf = (away_df - away_df.min()) / (away_df.max() - away_df.min())
-            if home_df.shape == (11, 23) and away_df.shape == (11, 23):
+            if home_df.shape == (11, 25) and away_df.shape == (11, 25):
                 output = [target_game_date, spread, home_df, away_df]
             else:
                 return None
@@ -119,14 +118,9 @@ class DataObject:
         elif label_function == 'over_under':
             in_func = self.__getOverUnder__
         all_games_ids = self.df1['GAME_ID'].unique()
-        pool = get_context("fork").Pool(22)
+        pool = get_context("fork").Pool(22) #change to number of cores on machine
         optimization_result = pool.map(in_func, all_games_ids)
         pool.close()
-
-        # pool = Pool(22)
-        # optimization_result = pool.map(in_func, all_games_ids)  ##When iterated over produces [2, 3, 4]
-        # pool.close()
-        # pool.join()
         return optimization_result
 
 
@@ -146,8 +140,6 @@ class overunder_driver:
             self.root_data_dir = '/home/david/nba/data/'
 
         self.game_date = game_date
-        self.bst_spread = xgb.Booster()
-        self.bst_spread.load_model(self.root_data_dir + 'spreadmodel.bst')
         self.bst_overunder = xgb.Booster()
         self.bst_overunder.load_model(self.root_data_dir  + 'overundermodel.bst')
         df1 = pd.read_csv(self.root_data_dir + 'gamedf.csv', index_col=0)
@@ -161,17 +153,14 @@ class overunder_driver:
 
         score_row = np.concatenate((home_stats_flat, away_stats_flat), axis=1)
         score_row_inverse = np.concatenate((away_stats_flat, home_stats_flat), axis=1)
-        spread_val = self.bst_spread.predict(xgb.DMatrix(score_row))
-        spread_inverse = self.bst_spread.predict(xgb.DMatrix(score_row_inverse))
         over_under_val = self.bst_overunder.predict(xgb.DMatrix(score_row))
         over_under_inverse = self.bst_overunder.predict(xgb.DMatrix(score_row_inverse))
-        out_list = [spread_val,spread_inverse,over_under_val,over_under_inverse]
-        # out_list = [over_under_val,over_under_inverse]
+        # out_list = [spread_val,spread_inverse,over_under_val,over_under_inverse]
+        out_list = [over_under_val,over_under_inverse]
         return out_list
 
     def verify_game(self,away_team,home_team):
         outlist = self.get_games(away_team, home_team)
-        # out_list = [over_under_val,over_under_inverse]
         return outlist, self.home_stats, self.away_stats
 
     def get_df(self,inputlist):
@@ -186,8 +175,8 @@ class overunder_driver:
             outrow = c_pair
             outlist.append(outrow)
         outdf = pd.DataFrame(outlist)
-        outdf.columns = ['away_team','home_team','spread', 'spread_inverse','over_under','over_under_inverse']
-        # outdf.columns = ['away_team','home_team','over_under','over_under_inverse']
+        # outdf.columns = ['away_team','home_team','spread', 'spread_inverse','over_under','over_under_inverse']
+        outdf.columns = ['away_team','home_team','over_under','over_under_inverse']
         return outdf
 
     def get_team_list(self):
