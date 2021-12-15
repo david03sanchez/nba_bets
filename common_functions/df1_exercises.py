@@ -59,11 +59,3 @@ def games_of_the_day():
             game_titles.append(f'{team} at {daily_games[daily_games.index(team)+1]}')
 
     return game_titles
-
-
-
-
-
-
-
-
