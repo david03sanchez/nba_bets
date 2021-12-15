@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
+import requests
 from bs4 import BeautifulSoup
+import csv
 #%%
 df1 = pd.read_csv('C:\\Users\\David\\PycharmProjects\\nba_bets\\common_functions\\gamedf.csv', index_col=0)
 
@@ -30,5 +32,38 @@ bulls_games["PTS"].sum()
 #49251
 
 #%%
+#get the daily nba games
+def games_of_the_day():
+    todays_games = str(pd.to_datetime("today"))[:10]
+    res = requests.get(f"https://www.nba.com/games?date={todays_games}")
+    soup = BeautifulSoup(res.text, 'html.parser')
+    span_list = []
+    for team in soup.find_all('span'):
+        span_list.append(team.get_text())
+
+    teams = pd.read_csv('C:\\Users\\David\\PycharmProjects\\nba_bets\\common_functions\\nba_teams.csv')
+    prefixes = sorted(list(teams["name"]))
+    mascot_names = []
+    daily_games = []
+    game_titles = []
+
+    for team in prefixes:
+        mascot_names.append(team.split()[-1])
+
+    for text in span_list:
+        if text in mascot_names:
+            daily_games.append(text)
+
+    for team in daily_games:
+        if daily_games.index(team) % 2 == 0:
+            game_titles.append(f'{team} at {daily_games[daily_games.index(team)+1]}')
+
+    return game_titles
+
+
+
+
+
+
 
 
