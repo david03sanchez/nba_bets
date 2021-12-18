@@ -6,7 +6,7 @@ import requests
 from bs4 import BeautifulSoup
 
 
-def games_of_the_day():
+def games_of_day():
     current_teams = pd.read_csv('C:\\Users\\David\\PycharmProjects\\nba_bets\\common_functions\\current_teams.csv')
     team_dict = dict(zip(list(current_teams["TEAM_MASCOT"]), list(current_teams["TEAM_ABBREVIATION"])))
     todays_games = str(pd.to_datetime("today"))[:10]
@@ -27,5 +27,5 @@ def games_of_the_day():
             game_titles.append((team, daily_teams[daily_teams.index(team) + 1]))
 
     # return won't output game_titles when main() run?
-    # python games_of_the_day.py returns nothing?
+    # python game_day.py returns nothing?
     return game_titles
