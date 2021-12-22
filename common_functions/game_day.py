@@ -7,8 +7,11 @@ from bs4 import BeautifulSoup
 
 
 def games_of_day():
-    current_teams = pd.read_csv('C:\\Users\\David\\PycharmProjects\\nba_bets\\common_functions\\current_teams.csv')
-    team_dict = dict(zip(list(current_teams["TEAM_MASCOT"]), list(current_teams["TEAM_ABBREVIATION"])))
+    team_dict = {'Hawks': 'ATL', 'Celtics': 'BOS', 'Nets': 'BKN', 'Hornets': 'CHA', 'Bulls': 'CHI', 'Cavaliers': 'CLE',
+     'Mavericks': 'DAL', 'Nuggets': 'DEN', 'Pistons': 'DET', 'Warriors': 'GSW', 'Rockets': 'HOU', 'Pacers': 'IND',
+     'Clippers': 'LAC', 'Lakers': 'LAL', 'Grizzlies': 'MEM', 'Heat': 'MIA', 'Bucks': 'MIL', 'Timberwolves': 'MIN',
+     'Pelicans': 'NOP', 'Knicks': 'NYK', 'Thunder': 'OKC', 'Magic': 'ORL', '76ers': 'PHI', 'Suns': 'PHX',
+     'Trail Blazers': 'POR', 'Kings': 'SAC', 'Spurs': 'SAS', 'Raptors': 'TOR', 'Jazz': 'UTA', 'Wizards': 'WAS'}
     todays_games = str(pd.to_datetime("today"))[:10]
     res = requests.get(f"https://www.nba.com/games?date={todays_games}")
     soup = BeautifulSoup(res.text, 'html.parser')
