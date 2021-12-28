@@ -6,7 +6,7 @@ env = 'linux'
 if env == 'mac':
     root_data_dir = '/Users/danny/nba_bets/data/'
 elif env == 'linux':
-    root_data_dir = '/home/danny/nba/data/'  # todo move the models to this directory on linux
+    root_data_dir = '/home/danny/nba/data/'
     sys.path.append('/home/danny/nba_bets')
 from common_functions.utils import getTeamDF
 
