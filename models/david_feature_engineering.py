@@ -1,14 +1,12 @@
 import pandas as pd
 import numpy as np
-from common_functions.utils import DataObject
 from multiprocessing import get_context
-import matplotlib.pyplot as plt
-#%%
+
 df1 = pd.read_csv('/home/danny/nba/data/gamedf.csv',index_col = 0)
 
 def getTeamStats(abv, latestdate):
-    abv = 'ATL'
-    latestdate = '2003-12-14'
+    # abv = 'ATL'
+    # latestdate = '2003-12-14'
     # edit this function for additional feature eng
     team_subset = df1[df1['TEAM_ABBREVIATION'] == abv].copy()
     team_subset['GAME_DATE'] = pd.to_datetime(team_subset['GAME_DATE'])
@@ -46,19 +44,14 @@ def getOverUnder(gameid):
         # target_game = df1[df1['GAME_ID'] == 29900549].reset_index(drop=True) #contains target
         if target_game.shape[0] != 2: #if all-star or other special game
             return None
-        match_location_away = target_game.loc[target_game['MATCHUP'].str.contains('@')]
-        match_location_home = target_game.loc[~target_game['MATCHUP'].str.contains('@')]
         game_date = target_game.loc[0,'GAME_DATE']
-        # match_outcome_home = np.where(match_location_away['WL'] == 'W',0,1) #0 if away team wins
-        spread = match_location_home.loc[:, 'PTS'] + match_location_away.loc[:, 'PTS']
-        home_team = match_location_home.loc[:,'TEAM_ABBREVIATION'].iloc[0]
-        away_team = match_location_away.loc[:,'TEAM_ABBREVIATION'].iloc[0]
+        over_under = target_game['PTS'].sum()
+        home_team = target_game.loc[~target_game['MATCHUP'].str.contains('@')]['TEAM_ABBREVIATION'].iloc[0]
+        away_team = target_game.loc[target_game['MATCHUP'].str.contains('@')]['TEAM_ABBREVIATION'].iloc[0]
         home_df = getTeamStats(home_team, game_date)
         away_df = getTeamStats(away_team, game_date)
-        # normalized_hdf = (home_df - home_df.min()) / (home_df.max() - home_df.min())
-        # normalized_adf = (away_df - away_df.min()) / (away_df.max() - away_df.min())
         if home_df.shape == (11, 26) and away_df.shape == (11, 26):
-            output = [game_date, spread, home_df, away_df]
+            output = [game_date, over_under, home_df, away_df]
         else:
             return None
     except:
@@ -70,4 +63,74 @@ def get_optimization(indf):
     pool = get_context("fork").Pool(22) #change to number of cores on machine
     optimization_result = pool.map(getOverUnder, all_games_ids)
     pool.close()
-    return optimization_result
+    complete_dataset = []
+    for val in optimization_result:
+        if val != None:
+            complete_dataset.append(val)
+    return complete_dataset
+
+#%%
+complete_dataset = get_optimization(df1)
+
+
+train_labels = []
+train_features = []
+test_labels = []
+test_features = []
+
+for r in range(0,len(complete_dataset)):
+    print(r)
+    if pd.to_datetime(complete_dataset[r][0]) < pd.to_datetime('2020-01-01'):
+        train_labels.append(complete_dataset[r][1])
+        home_row = complete_dataset[r][2].to_numpy().flatten('F')
+        away_row = complete_dataset[r][3].to_numpy().flatten('F')
+        both_row = np.concatenate((home_row,away_row))
+        train_features.append(both_row)
+    else:
+        test_labels.append(complete_dataset[r][1])
+        home_row = complete_dataset[r][2].to_numpy().flatten('F')
+        away_row = complete_dataset[r][3].to_numpy().flatten('F')
+        both_row = np.concatenate((home_row,away_row))
+        test_features.append(both_row)
+
+num_features = 550
+train_labels = np.array(train_labels)
+train_features = np.array(train_features)
+test_labels = np.array(test_labels)
+test_features = np.array(test_features)
+
+#%%
+trainlab = np.nan_to_num(train_labels)
+trainset = np.nan_to_num(train_features)
+testlab = np.nan_to_num(test_labels)
+testset = np.nan_to_num(test_features)
+
+
+import xgboost as xgb
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+
+dtrain = xgb.DMatrix(trainset, label=trainlab)
+
+params = {}
+params['eval_metric'] = 'mae'
+params['tree_method'] = 'gpu_hist'
+# params['colsample_bytree'] = .849
+# params['gamma'] = .07
+params['learning_rate'] = .01
+params['max_depth'] = 5
+# params['early_stopping_rounds'] = 30
+params['objective'] = 'reg:squarederror'
+# params['scale_pos_weight'] = 2
+
+
+num_round = 1200
+
+bst = xgb.train(params, dtrain,num_round)
+
+
+dtest = xgb.DMatrix(testset)
+predictions = bst.predict(dtest)
+pred_df = pd.DataFrame([predictions,test_labels]).transpose()
+pred_df.columns = ['predictions','labels']
+print(mean_squared_error(pred_df['labels'], pred_df['predictions'], squared=False))
+print(mean_absolute_error(pred_df['labels'], pred_df['predictions']))
