@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 from multiprocessing import get_context
+import xgboost as xgb
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 df1 = pd.read_csv('/home/danny/nba/data/gamedf.csv',index_col = 0)
 
@@ -8,35 +10,33 @@ def getTeamStats(abv, latestdate):
     # abv = 'ATL'
     # latestdate = '2003-12-14'
     # edit this function for additional feature eng
-    team_subset = df1[df1['TEAM_ABBREVIATION'] == abv].copy()
+    team_subset = df1[(df1['TEAM_ABBREVIATION'] == abv) & (pd.to_datetime(df1['GAME_DATE']) < latestdate)].copy()
     team_subset['GAME_DATE'] = pd.to_datetime(team_subset['GAME_DATE'])
     team_subset.index = team_subset['GAME_DATE']
     team_subset.sort_index(inplace=True, ascending=False)
-    colnames = team_subset.columns
     stats_columns = ['PTS', 'FGM', 'FGA', 'FG_PCT',
                      'FG3M', 'FG3A', 'FG3_PCT', 'FTM', 'FTA', 'FT_PCT', 'OREB', 'DREB',
                      'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'window_sum10', 'window_sum5',
                      'window_sum3', 'location', 'numerical_wins', 'break_days']
-    date_subset = team_subset[team_subset['GAME_DATE'] < latestdate].copy()
-    date_subset['numerical_wins'] = np.where(date_subset['WL'] == 'L', 0, 1)
-    date_subset['location'] = np.where(date_subset['MATCHUP'].str.contains('@'), -1, 1)
-    date_subset = date_subset.iloc[::-1].copy()
-    date_subset['window_sum10'] = date_subset['numerical_wins'].rolling(10).sum()
-    date_subset['window_sum5'] = date_subset['numerical_wins'].rolling(5).sum()
-    date_subset['window_sum3'] = date_subset['numerical_wins'].rolling(3).sum()
-    date_subset['LAG_DATA'] = date_subset['GAME_DATE'].shift(1)
-    date_subset['break_days'] = date_subset["GAME_DATE"] - date_subset["LAG_DATA"]
-    date_subset['break_days'] = date_subset['break_days'].dt.days
-    current_stats = date_subset.iloc[-11:, [date_subset.columns.get_loc(c) for c in stats_columns]].copy()
-    current_stats['PIE'] = (
-            current_stats['PTS'] + current_stats['FGM'] + current_stats['FTM'] - current_stats[
-        'FTA'] + current_stats['DREB'] +
-            current_stats['OREB'] + current_stats['AST'] + current_stats['STL'] + current_stats[
-                'BLK'] - current_stats['PF'] - current_stats['TOV'])
-    current_stats['CORE_PTS'] = current_stats['PTS']
-    current_stats.iloc[:, 0:18] = current_stats.iloc[:, 0:18].ewm(halflife=7).mean()
+    team_subset['numerical_wins'] = np.where(team_subset['WL'] == 'L', 0, 1)
+    team_subset['location'] = np.where(team_subset['MATCHUP'].str.contains('@'), -1, 1)
+    team_subset = team_subset.iloc[::-1].copy()
+    team_subset['window_sum10'] = team_subset['numerical_wins'].rolling(10).sum()
+    team_subset['window_sum5'] = team_subset['numerical_wins'].rolling(5).sum()
+    team_subset['window_sum3'] = team_subset['numerical_wins'].rolling(3).sum()
+    team_subset['LAG_DATA'] = team_subset['GAME_DATE'].shift(1)
+    team_subset['break_days'] = team_subset["GAME_DATE"] - team_subset["LAG_DATA"]
+    team_subset['break_days'] = team_subset['break_days'].dt.days
+    team_subset = team_subset.iloc[-11:, [team_subset.columns.get_loc(c) for c in stats_columns]]
+    team_subset['PIE'] = (
+            team_subset['PTS'] + team_subset['FGM'] + team_subset['FTM'] - team_subset[
+        'FTA'] + team_subset['DREB'] +
+            team_subset['OREB'] + team_subset['AST'] + team_subset['STL'] + team_subset[
+                'BLK'] - team_subset['PF'] - team_subset['TOV'])
+    team_subset['CORE_PTS'] = team_subset['PTS']
+    team_subset.iloc[:, 0:18] = team_subset.iloc[:, 0:18].ewm(halflife=7).mean()
 
-    return current_stats
+    return team_subset
 
 def getOverUnder(gameid):
     try:
@@ -68,11 +68,10 @@ def get_optimization(indf):
         if val != None:
             complete_dataset.append(val)
     return complete_dataset
-
 #%%
 complete_dataset = get_optimization(df1)
 
-
+#%%
 train_labels = []
 train_features = []
 test_labels = []
@@ -98,16 +97,10 @@ train_labels = np.array(train_labels)
 train_features = np.array(train_features)
 test_labels = np.array(test_labels)
 test_features = np.array(test_features)
-
-#%%
 trainlab = np.nan_to_num(train_labels)
 trainset = np.nan_to_num(train_features)
 testlab = np.nan_to_num(test_labels)
 testset = np.nan_to_num(test_features)
-
-
-import xgboost as xgb
-from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 dtrain = xgb.DMatrix(trainset, label=trainlab)
 
@@ -122,11 +115,9 @@ params['max_depth'] = 5
 params['objective'] = 'reg:squarederror'
 # params['scale_pos_weight'] = 2
 
-
 num_round = 1200
 
 bst = xgb.train(params, dtrain,num_round)
-
 
 dtest = xgb.DMatrix(testset)
 predictions = bst.predict(dtest)
