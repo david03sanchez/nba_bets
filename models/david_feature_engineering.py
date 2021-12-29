@@ -42,26 +42,23 @@ def getTeamStats(abv, latestdate):
 
 def getOverUnder(gameid):
     try:
-        target_game = df1[df1['GAME_ID'] == gameid]  # contains target
-        # target_game = df1[df1['GAME_ID'] == 29900545] #contains target
-        if target_game.shape[0] != 2:
+        target_game = df1[df1['GAME_ID'] == gameid].reset_index(drop=True)  # contains target
+        # target_game = df1[df1['GAME_ID'] == 29900549].reset_index(drop=True) #contains target
+        if target_game.shape[0] != 2: #if all-star or other special game
             return None
-        relevant_teams = target_game['TEAM_ABBREVIATION'].tolist()
         match_location_away = target_game.loc[target_game['MATCHUP'].str.contains('@')]
         match_location_home = target_game.loc[~target_game['MATCHUP'].str.contains('@')]
-        target_game_date = match_location_home['GAME_DATE']
+        game_date = target_game.loc[0,'GAME_DATE']
         # match_outcome_home = np.where(match_location_away['WL'] == 'W',0,1) #0 if away team wins
-        spread = match_location_home.iloc[0, match_location_home.columns.get_loc('PTS')] + \
-                 match_location_away.iloc[0, match_location_away.columns.get_loc('PTS')]
-        game_date = match_location_away['GAME_DATE'].values[0]
-        home_team = match_location_away['MATCHUP'].str.extract(r'((?<=@.)\S{3})')[0].tolist()
-        away_team = [x for x in relevant_teams if x not in home_team]
-        home_df = getTeamStats(home_team[0], game_date)
-        away_df = getTeamStats(away_team[0], game_date)
+        spread = match_location_home.loc[:, 'PTS'] + match_location_away.loc[:, 'PTS']
+        home_team = match_location_home.loc[:,'TEAM_ABBREVIATION'].iloc[0]
+        away_team = match_location_away.loc[:,'TEAM_ABBREVIATION'].iloc[0]
+        home_df = getTeamStats(home_team, game_date)
+        away_df = getTeamStats(away_team, game_date)
         # normalized_hdf = (home_df - home_df.min()) / (home_df.max() - home_df.min())
         # normalized_adf = (away_df - away_df.min()) / (away_df.max() - away_df.min())
-        if home_df.shape == (11, 25) and away_df.shape == (11, 25):
-            output = [target_game_date, spread, home_df, away_df]
+        if home_df.shape == (11, 26) and away_df.shape == (11, 26):
+            output = [game_date, spread, home_df, away_df]
         else:
             return None
     except:
