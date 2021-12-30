@@ -231,6 +231,8 @@ print(mean_absolute_error(pred_df['labels'], pred_df['predictions']))
 20.18
 15.84
 
+
+
 #%%
 trainlab = np.nan_to_num(train_labels)
 trainset = np.nan_to_num(train_features)
