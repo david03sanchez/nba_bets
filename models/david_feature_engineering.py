@@ -103,6 +103,7 @@ testlab = np.nan_to_num(test_labels)
 testset = np.nan_to_num(test_features)
 
 dtrain = xgb.DMatrix(trainset, label=trainlab)
+np.random.seed(12)
 
 params = {}
 params['eval_metric'] = 'mae'
