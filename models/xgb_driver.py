@@ -20,4 +20,4 @@ team_list = md.get_team_list()
 
 game_df = md.get_df(inputlist)
 over_under_df = game_df.loc[:,['away_team','home_team','over_under','over_under_inverse']]
-ar_list, home_df, away_df = md.verify_game('NYK','DET')
+ar_list, home_df, away_df = md.verify_game('PHI','BKN')

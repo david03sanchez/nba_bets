@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from geopy.geocoders import Nominatim
+from geopy.geocoders import Nominatim, GoogleV3
 from geopy.distance import geodesic
 
 df1 = pd.read_csv('/home/danny/nba/data/gamedf.csv',index_col = 0)
@@ -19,28 +19,42 @@ team_addy = ['1 State Farm Dr, Atlanta, GA 30303', '100 Legends Wy, Boston, MA 0
        '601 F St NW, Washington, DC 20004', '2645 Woodward Ave, Detroit, MI 48201', '333 E Trade St, Charlotte, NC 28202']
 
 current_teams = pd.DataFrame(data={'TEAM_NAME': team_names, 'TEAM_ABBREVIATION': team_abv, 'TEAM_ADDY': team_addy})
-# declaration of distance dataframe important need to change
-distance = pd.DataFrame(data={'ADDY1': '1 State Farm Dr, Atlanta, GA 30303', 'ADDY2': '100 Legends Wy, Boston, MA 02114'}, index=[0])
+
+from itertools import combinations
+all_combinations = combinations(current_teams['TEAM_ABBREVIATION'], 2)
+combination_list = [x for x in all_combinations]
+combination_df = pd.DataFrame(combination_list,columns=['team1','team2'])
+combination_df
 
 geolocator = Nominatim(user_agent='Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.3')
-distance['ADDY1_COOR'] = distance['ADDY1'].apply(geolocator.geocode)
-distance['ADDY2_COOR'] = distance['ADDY2'].apply(geolocator.geocode)
-distance['lat1'] = distance['ADDY1_COOR'].apply(lambda x: x.latitude if x != None else None)
-distance['lon1'] = distance['ADDY1_COOR'].apply(lambda x: x.longitude if x != None else None)
-distance['lat2'] = distance['ADDY2_COOR'].apply(lambda x: x.latitude if x != None else None)
-distance['lon2'] = distance['ADDY2_COOR'].apply(lambda x: x.longitude if x != None else None)
 
-
-def distance_func(row):
-    address1 = (row['lat1'], row['lon1'])
-    address2 = (row['lat2'], row['lon2'])
+def get_distance(abv1,abv2):
+    # abv1 = 'ATL'
+    # abv2 = 'CLE'
     try:
-        return geodesic(address1, address2).miles
-    except TypeError:
+        addy1 = current_teams.loc[current_teams['TEAM_ABBREVIATION'] == abv1,:]
+        addy2 = current_teams.loc[current_teams['TEAM_ABBREVIATION'] == abv2,:]
+        coor1 = geolocator.geocode(addy1.iloc[0,2])
+        coor2 = geolocator.geocode(addy2.iloc[0,2])
+        lat1 = coor1.latitude
+        lon1 = coor1.longitude
+        lat2 = coor2.latitude
+        lon2 = coor2.longitude
+        address1 = (lat1,lon1)
+        address2 = (lat2,lon2)
+        distance = geodesic(address1, address2).miles
+        return distance
+    except:
             return np.nan
 
-distance['dist_btw'] = distance.apply(lambda row: distance_func(row), axis=1)
+combination_df['distance'] = np.nan
+for r in range(0,combination_df.shape[0]):
+    print(r)
+    team1 = combination_df.iloc[r,0]
+    team2 = combination_df.iloc[r,1]
+    c_distance = get_distance(team1,team2)
+    combination_df.iloc[r,-1] = c_distance
 
+# combination_df is final reference map
 
-# use this line format to find address of team in current_teams
-# current_teams.iloc[current_teams[current_teams['TEAM_ABBREVIATION']==team].index.values[0],2]
+combination_df.to_csv('/home/danny/data/distance_map.csv')
