@@ -250,3 +250,22 @@ for i in inputlist:
 
 
 
+#%%
+#tabnet model
+from pytorch_tabnet.tab_model import TabNetClassifier, TabNetRegressor
+trainlab = trainlab.reshape(-1,1)
+testlab = testlab.reshape(-1,1)
+clf = TabNetRegressor()
+clf.fit(
+    trainset, trainlab,
+    eval_set=[(testset, testlab)],
+    max_epochs=200,
+    patience=50,
+    batch_size=12, virtual_batch_size=12,
+    drop_last=False
+)
+predictions = clf.predict(testset)
+pred_df = pd.DataFrame([predictions.flatten(),test_labels]).transpose()
+pred_df.columns = ['predictions','labels']
+print(mean_squared_error(pred_df['labels'], pred_df['predictions'], squared=False))
+print(mean_absolute_error(pred_df['labels'], pred_df['predictions']))
