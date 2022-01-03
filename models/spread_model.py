@@ -70,10 +70,9 @@ def get_optimization(indf):
         if val != None:
             complete_dataset.append(val)
     return complete_dataset
-#%%
+
 complete_dataset = get_optimization(df1)
 
-#%%
 train_labels = []
 train_features = []
 test_labels = []
@@ -103,31 +102,6 @@ trainlab = np.nan_to_num(train_labels)
 trainset = np.nan_to_num(train_features)
 testlab = np.nan_to_num(test_labels)
 testset = np.nan_to_num(test_features)
-
-dtrain = xgb.DMatrix(trainset, label=trainlab)
-np.random.seed(12)
-
-params = {}
-params['eval_metric'] = 'mae'
-params['tree_method'] = 'gpu_hist'
-# params['colsample_bytree'] = .849
-# params['gamma'] = .07
-params['learning_rate'] = .01
-params['max_depth'] = 5
-# params['early_stopping_rounds'] = 30
-params['objective'] = 'reg:squarederror'
-# params['scale_pos_weight'] = 2
-
-num_round = 1000
-
-bst = xgb.train(params, dtrain,num_round)
-
-dtest = xgb.DMatrix(testset)
-predictions = bst.predict(dtest)
-pred_df = pd.DataFrame([predictions,test_labels]).transpose()
-pred_df.columns = ['predictions','labels']
-print(mean_squared_error(pred_df['labels'], pred_df['predictions'], squared=False))
-print(mean_absolute_error(pred_df['labels'], pred_df['predictions']))
 
 #%%
 
@@ -181,8 +155,10 @@ ensemble_model = trainRegressionModels(trainset,trainlab)
 ensemble_model.train_individual_model()
 ensemble_model.train_individual_model(learning_rate=.01,max_depth=4,num_round=1200)
 ensemble_model.train_individual_model(learning_rate=.01,max_depth=6,num_round=1200)
+ensemble_model.train_individual_model(learning_rate=.01,max_depth=7,num_round=1200)
+ensemble_model.train_individual_model(learning_rate=.01,max_depth=3,num_round=1200)
 ensemble_model.train_individual_model(learning_rate=.1,max_depth=2,num_round=400)
-ensemble_model.train_individual_model(learning_rate=.1,max_depth=3,num_round=400)
+
 
 
 ensemble_model.save_model()
@@ -196,11 +172,8 @@ preds['label'] = finaldf.iloc[:,1]
 print(mean_squared_error(preds['label'], preds['composite'], squared=False))
 print(mean_absolute_error(preds['label'], preds['composite']))
 
-check_df = preds.loc[:,['composite','label']]
-check_df['sign'] = np.where(np.sign(check_df['composite']) == np.sign(check_df['label']),1,0)
-check_df['sign'].mean()
+
 #%%
-#driver
 
 from common_functions.utils import overunder_driver
 from common_functions.game_day import games_of_day
@@ -235,14 +208,14 @@ def get_games(away_team, home_team):
         complete_predictions.append(predictions)
 
     composite_prediction = np.mean(complete_predictions)
+    composite_variance = np.std(complete_predictions)
 
-
-    return composite_prediction
+    return composite_prediction, composite_variance
 
 def get_output_row(away,home):
-    c_game = get_games(away, home)
-    c_game_inverse = get_games(c_home, c_away)
-    c_row = pd.DataFrame([c_away,c_home,c_game,c_game_inverse]).T
+    c_game,c_game_variance = get_games(away, home)
+
+    c_row = pd.DataFrame([c_away,c_home,c_game,c_game_variance]).T
     return c_row
 
 outdf = pd.DataFrame()
@@ -252,25 +225,4 @@ for i in inputlist:
     current_row = get_output_row(c_away,c_home)
     outdf = pd.concat([outdf,current_row])
 
-
-
-
-#%%
-#tabnet model
-from pytorch_tabnet.tab_model import TabNetClassifier, TabNetRegressor
-trainlab = trainlab.reshape(-1,1)
-testlab = testlab.reshape(-1,1)
-clf = TabNetRegressor()
-clf.fit(
-    trainset, trainlab,
-    eval_set=[(testset, testlab)],
-    max_epochs=200,
-    patience=50,
-    batch_size=512, virtual_batch_size=128,
-    drop_last=False
-)
-predictions = clf.predict(testset)
-pred_df = pd.DataFrame([predictions.flatten(),test_labels]).transpose()
-pred_df.columns = ['predictions','labels']
-print(mean_squared_error(pred_df['labels'], pred_df['predictions'], squared=False))
-print(mean_absolute_error(pred_df['labels'], pred_df['predictions']))
+outdf.columns = ['away','home','spread','standard dev']
