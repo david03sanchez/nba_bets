@@ -1,9 +1,10 @@
+# this code was used to generate a distance map of all nba teams' arenas referred to as distance_map.csv
 import pandas as pd
 import numpy as np
 import googlemaps
 from itertools import combinations
-#%%
-df1 = pd.read_csv('/home/danny/nba/data/gamedf.csv',index_col = 0)
+
+df1 = pd.read_csv('/home/data/gamedf.csv', index_col=0)
 df1['GAME_DATE'] = pd.to_datetime(df1['GAME_DATE'])
 team_names = df1[df1['GAME_DATE'] > '12-31-2020']['TEAM_NAME'].unique()
 team_abv = df1[df1['GAME_DATE'] > '12-31-2020']['TEAM_ABBREVIATION'].unique()
@@ -19,27 +20,27 @@ team_addy = ['1 State Farm Dr, Atlanta, GA 30303', '100 Legends Wy, Boston, MA 0
        '601 F St NW, Washington, DC 20004', '2645 Woodward Ave, Detroit, MI 48201', '333 E Trade St, Charlotte, NC 28202']
 
 current_teams = pd.DataFrame(data={'TEAM_NAME': team_names, 'TEAM_ABBREVIATION': team_abv, 'TEAM_ADDY': team_addy})
-combination_list = [x for x in combinations(current_teams['TEAM_ABBREVIATION'], 2)]
-combination_df = pd.DataFrame(combination_list,columns=['team1','team2'])
+combination_list = list(combinations(current_teams['TEAM_ABBREVIATION'], 2))
+combination_df = pd.DataFrame(combination_list, columns=['team1', 'team2'])
 combination_df['distance'] = np.nan
-#%%
-def get_distance(abv1,abv2):
-    addy1 = current_teams.loc[current_teams['TEAM_ABBREVIATION'] == abv1, :].iloc[0,2]
-    addy2 = current_teams.loc[current_teams['TEAM_ABBREVIATION'] == abv2, :].iloc[0,2]
+
+
+def get_distance(abv1, abv2):
+    addy1 = current_teams.loc[current_teams['TEAM_ABBREVIATION'] == abv1, :].iloc[0, 2]
+    addy2 = current_teams.loc[current_teams['TEAM_ABBREVIATION'] == abv2, :].iloc[0, 2]
     gmaps = googlemaps.Client(key="AIzaSyD3JHU1gaLCSzAUxtfzl_xoSW6cPJ8FGTU")
-    json_response = gmaps.distance_matrix(addy1,addy2)
+    json_response = gmaps.distance_matrix(addy1, addy2)
     raw_string = json_response['rows'][0]['elements'][0]['distance']['text'].replace(' ', '')
-    float_string = ''.join([x for x in raw_string if x.isalpha() == False and x != ','])
+    float_string = ''.join([x for x in raw_string if x.isalpha() is False and x != ','])
     distance_miles = float(float_string) * 0.62137
     return distance_miles
 
 
-#%%
-for r in range(0,combination_df.shape[0]):
+for r in range(0, combination_df.shape[0]):
     print(r)
-    team1 = combination_df.iloc[r,0]
-    team2 = combination_df.iloc[r,1]
-    c_distance = get_distance(team1,team2)
-    combination_df.iloc[r,-1] = c_distance
+    team1 = combination_df.iloc[r, 0]
+    team2 = combination_df.iloc[r, 1]
+    c_distance = get_distance(team1, team2)
+    combination_df.iloc[r, -1] = c_distance
 
 combination_df.to_csv('/home/david/nba_bets/common_functions/distance_map.csv')

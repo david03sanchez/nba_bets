@@ -1,5 +1,6 @@
 import pandas as pd
 from nba_api.stats.static import teams
+from common_functions.utils import getTeamDF
 import sys
 env = 'linux'
 #%%
@@ -8,9 +9,6 @@ if env == 'mac':
 elif env == 'linux':
     root_data_dir = '/home/danny/nba/data/'
     sys.path.append('/home/danny/nba_bets')
-from common_functions.utils import getTeamDF
-
-#%%
 
 
 all_games = pd.DataFrame()
@@ -23,4 +21,4 @@ for abv in all_abs:
     all_games = pd.concat([all_games,gamedf],axis=0)
 
 
-all_games.to_csv(root_data_dir + 'gamedf.csv')
+all_games.to_csv('/home/data/gamedf.csv')
