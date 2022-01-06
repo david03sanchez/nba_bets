@@ -6,6 +6,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 df1 = pd.read_csv('/home/danny/nba/data/gamedf.csv',index_col = 0)
 
+
 def getTeamStats(abv, latestdate):
     # abv = 'ATL'
     # latestdate = '2003-12-14'
@@ -34,6 +35,7 @@ def getTeamStats(abv, latestdate):
             team_subset['OREB'] + team_subset['AST'] + team_subset['STL'] + team_subset[
                 'BLK'] - team_subset['PF'] - team_subset['TOV'])
     team_subset['CORE_PTS'] = team_subset['PTS']
+
     # team_subset.iloc[:, 0:18] = team_subset.iloc[:, 0:18].ewm(halflife=7).mean()
 
     return team_subset
