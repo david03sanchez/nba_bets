@@ -4,7 +4,9 @@ from multiprocessing import get_context
 import xgboost as xgb
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
-df1 = pd.read_csv('/home/danny/nba/data/gamedf.csv',index_col = 0)
+df1 = pd.read_csv('/home/data/gamedf.csv',index_col = 0)
+
+ranking_map = pd.read_csv('/home/danny/nba/data/ranking_map.csv',index_col=0)
 
 def getTeamStats(abv, latestdate):
     # abv = 'ATL'
@@ -34,8 +36,12 @@ def getTeamStats(abv, latestdate):
             team_subset['OREB'] + team_subset['AST'] + team_subset['STL'] + team_subset[
                 'BLK'] - team_subset['PF'] - team_subset['TOV'])
     team_subset['CORE_PTS'] = team_subset['PTS']
-    # team_subset.iloc[:, 0:18] = team_subset.iloc[:, 0:18].ewm(halflife=7).mean()
-
+    team_subset['year_norm'] = team_subset.index.year - 1983
+    rank_sub = ranking_map[ranking_map['TEAM_ABBREVIATION'] == abv][['PTS_Rank','AST_Rank','Index_Date']]
+    rank_sub['Index_Date'] = pd.to_datetime(rank_sub['Index_Date'])
+    rank_sub.set_index('Index_Date',inplace=True)
+    team_subset = team_subset.join(rank_sub,how='left')
+    team_subset.fillna(0,inplace=True)
     return team_subset
 
 def getOverUnder(gameid):
@@ -52,14 +58,14 @@ def getOverUnder(gameid):
         away_team = target_game.loc[target_game['MATCHUP'].str.contains('@')]['TEAM_ABBREVIATION'].iloc[0]
         home_df = getTeamStats(home_team, game_date)
         away_df = getTeamStats(away_team, game_date)
-        if home_df.shape == (30, 26) and away_df.shape == (30, 26):
+        if home_df.shape == (30, 29) and away_df.shape == (30, 29):
             output = [game_date, over_under, home_df, away_df]
         else:
             return None
     except:
         return None
     return output
-
+# getOverUnder(29900549)
 def get_optimization(indf):
     all_games_ids = indf['GAME_ID'].unique()
     pool = get_context("fork").Pool(22) #change to number of cores on machine
@@ -128,7 +134,7 @@ class trainRegressionModels:
         self.model_list.append(bst)
         return None
 
-    def save_model(self,path='/home/danny/data/xgb_ensemble.pkl'):
+    def save_model(self,path='/home/danny/data/xgb_ensemble_spread.pkl'):
         import pickle
         output = open(path, 'wb')
         # Pickle dictionary using protocol 0.
@@ -136,7 +142,7 @@ class trainRegressionModels:
 
     def predict_validation(self,testset):
         import pickle
-        pkl_file = open('/home/danny/data/xgb_ensemble.pkl', 'rb')
+        pkl_file = open('/home/danny/data/xgb_ensemble_spread.pkl', 'rb')
         model_list = pickle.load(pkl_file)
         dtest = xgb.DMatrix(testset)
         complete_predictions = pd.DataFrame()
@@ -171,6 +177,10 @@ preds['label'] = finaldf.iloc[:,1]
 
 print(mean_squared_error(preds['label'], preds['composite'], squared=False))
 print(mean_absolute_error(preds['label'], preds['composite']))
+#bench
+# 14.133108750969141
+# 11.147844716005732
+# 11.13
 
 
 #%%
@@ -197,7 +207,7 @@ def get_games(away_team, home_team):
     both_row = both_row.reshape(1,-1)
 
     import pickle
-    pkl_file = open('/home/danny/data/xgb_ensemble.pkl', 'rb')
+    pkl_file = open('/home/danny/data/xgb_ensemble_spread.pkl', 'rb')
     model_list = pickle.load(pkl_file)
     dtest = xgb.DMatrix(both_row)
     complete_predictions = []
@@ -226,3 +236,4 @@ for i in inputlist:
     outdf = pd.concat([outdf,current_row])
 
 outdf.columns = ['away','home','spread','standard dev']
+outdf['t-stat'] = outdf['spread'] / outdf['standard dev']
