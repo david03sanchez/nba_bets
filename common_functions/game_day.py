@@ -13,12 +13,9 @@ def games_of_day():
      'Clippers': 'LAC', 'Lakers': 'LAL', 'Grizzlies': 'MEM', 'Heat': 'MIA', 'Bucks': 'MIL', 'Timberwolves': 'MIN',
      'Pelicans': 'NOP', 'Knicks': 'NYK', 'Thunder': 'OKC', 'Magic': 'ORL', '76ers': 'PHI', 'Suns': 'PHX',
      'Trail Blazers': 'POR', 'Kings': 'SAC', 'Spurs': 'SAS', 'Raptors': 'TOR', 'Jazz': 'UTA', 'Wizards': 'WAS'}
-    todays_games = str(pd.to_datetime("today"))[:10]
+    todays_games = str(pd.to_datetime("today").tz_localize('UTC').tz_convert('EST').date())
     res = requests.get(f"https://www.nba.com/games?date={todays_games}")
     soup = BeautifulSoup(res.text, 'html.parser')
     team_list = [team_dict[span.get_text()] for span in soup.find_all('span') if span.get_text() in team_dict.keys()]
     daily_games = [(team, team_list[team_list.index(team) + 1]) for team in team_list if team_list.index(team) % 2 == 0]
     return daily_games
-
-
-print(games_of_day())
