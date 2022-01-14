@@ -5,25 +5,14 @@ df1 = pd.read_csv('/home/danny/nba/data/gamedf.csv', index_col=0)
 df1.index = pd.to_datetime(df1['GAME_DATE'])
 df1.sort_index(inplace=True, ascending=False)
 distance_df = pd.read_csv('/home/data/distance_map.csv', index_col=0)
-distance_df['regular'] = np.nan
-for r in range(0, distance_df.shape[0]):
-    team1 = distance_df.iloc[r, 0]
-    team2 = distance_df.iloc[r, 1]
-    distance_df.iloc[r,-1] = f'{team1}{team2}{team2}{team1}'
-
-distance_df.to_csv('/home/data/distance_map.csv')
 #%%
 def distanceSlice(game_id, team):
     #TEAM_ABBREVIATION, GAME_ID, GAME_DATE, MATCHUP, DISTANCE
-    # game_id = 20300224
+    # game_id = 22100384
     # team = 'ATL'
     subset = df1.loc[:, ['TEAM_ABBREVIATION', 'GAME_ID', 'GAME_DATE', 'MATCHUP']][df1['GAME_ID'] == game_id]
     game_date = pd.to_datetime(subset['GAME_DATE'][0])
     subset['distance'] = np.nan
-    homeAwayCheck = True
-    awayAwayCheck = True
-    homeDistance = 0
-    awayDistance = 0
     hometeam = subset[subset['MATCHUP'].str.contains('@') == False].iloc[0, 0]
     awayteam = subset[subset['MATCHUP'].str.contains('@') == True].iloc[0, 0]
     # get all games of hometeam, locate last 2, ['MATCHUP'][1] is previous game, check if home/away
@@ -36,31 +25,20 @@ def distanceSlice(game_id, team):
     # if hometeam was away last game
     elif homeAwayCheck is True:
         # where the home team played last game
-        prevGameLoc = df1[df1['TEAM_ABBREVIATION'] == hometeam].iloc[:2, :]['MATCHUP'][1][-3:]
+        prevGameLoc = df1[(df1['TEAM_ABBREVIATION'] == hometeam) & (pd.to_datetime(df1['GAME_DATE']) <= game_date)].iloc[:2, :]['MATCHUP'][1][-3:]
         homeDistance = distance_df[distance_df['regular'].str.contains(f'{hometeam}{prevGameLoc}')]['distance'].reset_index(drop=True)[0]
 
     # if awayteam was home last game
     if awayAwayCheck is False:
         awayDistance = 0
     elif awayAwayCheck is True:
-        prevGameLoc = df1[df1['TEAM_ABBREVIATION'] == awayteam].iloc[:2, :]['MATCHUP'][1][-3:]
-        awayDistance = distance_df[distance_df['regular'].str.contains(f'{awayteam}{prevGameLoc}')]['distance'].reset_index(drop=True)[0]
+        prevGameLoc = df1[(df1['TEAM_ABBREVIATION'] == awayteam) & (pd.to_datetime(df1['GAME_DATE']) <= game_date)].iloc[:2, :]['MATCHUP'][1][-3:]
+        awayDistance = distance_df[distance_df['regular'].str.contains(f'{hometeam}{prevGameLoc}')]['distance'].reset_index(drop=True)[0]
     subset.loc[subset['TEAM_ABBREVIATION'] == hometeam, 'distance'] = homeDistance
     subset.loc[subset['TEAM_ABBREVIATION'] == awayteam, 'distance'] = awayDistance
     # .reset_index(drop=True, inplace=True)
     return subset[subset['TEAM_ABBREVIATION'] == team].iloc[0,-1]
 
-#%%
-# TEST
-last10 = df1.iloc[:20,[df1.columns.get_loc(c) for c in ['TEAM_ABBREVIATION', 'GAME_ID', 'GAME_DATE', 'MATCHUP']]].reset_index(drop=True)
-last10['distance'] = np.nan
-
-# def addDistance(game_id, team):
-#     x = 0
-for x in range(last10.shape[0]):
-    game_row = last10.iloc[x,:]
-    game_row['distance'] = distanceSlice(game_row['GAME_ID'], game_row['TEAM_ABBREVIATION'])
-    last10.iloc[x, last10.columns.get_loc('distance')] = game_row['distance']
 
 #%%
 def getTeamStats(abv, latestdate):
