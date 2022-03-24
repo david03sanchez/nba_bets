@@ -35,12 +35,15 @@ def get_distance(abv1, abv2):
     distance_miles = float(float_string) * 0.62137
     return distance_miles
 
+def main(): 
+    for r in range(0, combination_df.shape[0]):
+        print(r)
+        team1 = combination_df.iloc[r, 0]
+        team2 = combination_df.iloc[r, 1]
+        c_distance = get_distance(team1, team2)
+        combination_df.iloc[r, -1] = c_distance
 
-for r in range(0, combination_df.shape[0]):
-    print(r)
-    team1 = combination_df.iloc[r, 0]
-    team2 = combination_df.iloc[r, 1]
-    c_distance = get_distance(team1, team2)
-    combination_df.iloc[r, -1] = c_distance
-
-combination_df.to_csv('/home/david/nba_bets/common_functions/distance_map.csv')
+    combination_df.to_csv('/home/david/nba_bets/common_functions/distance_map.csv')
+       
+if __name__ == "__main__":
+       main()
